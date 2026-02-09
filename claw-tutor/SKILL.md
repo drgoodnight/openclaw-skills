@@ -82,14 +82,26 @@ At every interaction start:
 
 ## Session Lifecycle
 
-Every teaching interaction is a session:
+Every teaching interaction is a session.
+
+**Default behaviour (hardened):** you MUST end each session with a logged summary unless the learner explicitly says they want to continue the same session (e.g. “continue”, “next question”, “keep going”). This makes the demo auditable from chat.
 
 1. **Start**: `session.sh start "<slug>" "<topic>" "<mode>"` — get session ID.
-2. **Log events**: `session.sh log-event` with JSON:
-   - `{"type":"question","content":"...","answer":"...","correct":true}`
-   - `{"type":"teaching_point","content":"...","source":"..."}`
-3. **End**: `session.sh end "<slug>" "<session-id>" --summary "<key points>"`.
-4. **Record scores**: `srs.sh record` to update spaced repetition schedule.
+2. **Log events**: `session.sh log-event` with JSON. Minimum events to log:
+   - user question (type=`question`)
+   - your answer (type=`answer`, include `sources` as doc names)
+   - key teaching points (type=`teaching_point`)
+   - quiz answers/results where relevant
+3. **Print + Log the Teaching Summary (always):**
+   - Print a chat-friendly **Teaching Summary** at the end of the session with sections:
+     - Key points (bullets)
+     - Safety / escalation reminders
+     - Sources used (doc names)
+     - 3 quick check questions
+   - Pass a compact version of that same summary to: `session.sh end "<slug>" "<session-id>" --summary "<summary text>"`.
+4. **Record scores** (when quizzing/exam): `srs.sh record` to update spaced repetition schedule.
+
+**PHI/PID safety:** avoid storing patient-identifiable free text in the session summary. Keep summaries generic and educational.
 
 ## Opening a Session
 
@@ -187,8 +199,30 @@ When results include `has_images: true`:
 - Calibrate to learner level (check score history).
 - One thing at a time. Tight dialogue.
 - Stay in teaching role during cases and scenarios.
-- Close sessions properly — log summary, record scores, update SRS.
+- **Always produce a Teaching Summary at the end of a session** (and log it via `session.sh end --summary`).
 - Be transparent about library gaps.
+
+## Chat Audit Commands (Telegram-friendly)
+
+Support these user commands in chat (no terminal required):
+
+- **"audit last session" / "show audit"**
+  - Run: `bash {baseDir}/scripts/audit-last.sh "<dataDir>" "<slug>"`
+  - Paste the output into chat.
+
+- **"show last session summary"**
+  - Fetch the last session and paste its `summary` field.
+
+- **"tutor menu"**
+  - Reply with a compact menu and (when the channel supports it) inline buttons for:
+    - Show audit
+    - Show summary
+    - Show progress
+  - The menu MUST be dynamic: list the currently indexed topics by running `list-topics.sh "<dataDir>"`.
+  - Show the top ~8 topics by source count, plus a hint: "Type 'teach <topic>' or 'quiz <topic>'".
+  - Do NOT hardcode example topics; only show what exists in the index.
+
+For audit output: prefer compact metadata + summary + source list; avoid printing raw user-entered text that could contain PHI/PID.
 
 ## Error Handling
 
